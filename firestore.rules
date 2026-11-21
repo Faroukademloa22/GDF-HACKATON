@@ -1,0 +1,266 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Pillar 3: Global hardened primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidNonNegNumber(val) {
+      return (val is int || val is float) && val >= 0 && val <= 10000000000;
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && isValidString(data.displayName, 1, 120)
+        && isValidString(data.email, 3, 254)
+        && (!data.keys().hasAny(['photoURL']) || isValidString(data.photoURL, 0, 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: GigAudit
+    function isValidGigAudit(data, userId, gigId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'title', 'clientName', 'projectType',
+          'clientStatedBudgetNgn', 'recommendedMinNgn', 'recommendedMaxNgn',
+          'timelineRequestedDays', 'recommendedDays', 'verdictStatus',
+          'verdictSummary', 'rawTranscript', 'parsedMessages',
+          'discrepancies', 'scopeItems', 'pricingVerdict',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'title', 'clientName', 'projectType',
+          'clientStatedBudgetNgn', 'recommendedMinNgn', 'recommendedMaxNgn',
+          'timelineRequestedDays', 'recommendedDays', 'verdictStatus',
+          'verdictSummary', 'rawTranscript', 'parsedMessages',
+          'discrepancies', 'scopeItems', 'pricingVerdict',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == gigId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidString(data.title, 1, 140)
+        && isValidString(data.clientName, 1, 100)
+        && isValidString(data.projectType, 1, 80)
+        && isValidNonNegNumber(data.clientStatedBudgetNgn)
+        && isValidNonNegNumber(data.recommendedMinNgn)
+        && isValidNonNegNumber(data.recommendedMaxNgn)
+        && isValidNonNegNumber(data.timelineRequestedDays)
+        && isValidNonNegNumber(data.recommendedDays)
+        && data.recommendedDays >= 1
+        && data.verdictStatus in ['underpriced', 'fair', 'bloated']
+        && isValidString(data.verdictSummary, 1, 2000)
+        && isValidString(data.rawTranscript, 1, 50000)
+        && data.parsedMessages is list
+        && data.parsedMessages.size() <= 120
+        && (data.parsedMessages.size() == 0 || data.parsedMessages[0] is map)
+        && data.discrepancies is list
+        && data.discrepancies.size() <= 30
+        && (data.discrepancies.size() == 0 || data.discrepancies[0] is map)
+        && data.scopeItems is list
+        && data.scopeItems.size() <= 40
+        && (data.scopeItems.size() == 0 || data.scopeItems[0] is map)
+        && data.pricingVerdict is map
+        && data.pricingVerdict.keys().hasAll(['makesSensePoints', 'doesNotMakeSensePoints', 'negotiationHeadline'])
+        && data.pricingVerdict.keys().hasOnly(['makesSensePoints', 'doesNotMakeSensePoints', 'negotiationHeadline'])
+        && data.pricingVerdict.makesSensePoints is list
+        && data.pricingVerdict.makesSensePoints.size() <= 15
+        && (data.pricingVerdict.makesSensePoints.size() == 0 || data.pricingVerdict.makesSensePoints[0] is string)
+        && data.pricingVerdict.doesNotMakeSensePoints is list
+        && data.pricingVerdict.doesNotMakeSensePoints.size() <= 15
+        && (data.pricingVerdict.doesNotMakeSensePoints.size() == 0 || data.pricingVerdict.doesNotMakeSensePoints[0] is string)
+        && isValidString(data.pricingVerdict.negotiationHeadline, 1, 400)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: AdvisorMessage
+    function isValidAdvisorMessage(data, userId, gigId, messageId) {
+      return data.keys().hasAll(['id', 'ownerId', 'gigId', 'role', 'content', 'discrepancyFlags', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'gigId', 'role', 'content', 'discrepancyFlags', 'linkedAgreementId', 'createdAt'])
+        && isValidId(data.id)
+        && data.id == messageId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidId(data.gigId)
+        && data.gigId == gigId
+        && data.role in ['developer', 'client_input', 'advisor']
+        && isValidString(data.content, 1, 15000)
+        && data.discrepancyFlags is list
+        && data.discrepancyFlags.size() <= 10
+        && (data.discrepancyFlags.size() == 0 || data.discrepancyFlags[0] is string)
+        && (!data.keys().hasAny(['linkedAgreementId']) || isValidId(data.linkedAgreementId))
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: AgreementDraft
+    function isValidAgreementDraft(data, userId, gigId, agreementId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'gigId', 'title', 'totalFeeNgn',
+          'milestoneSummary', 'documentMarkdown', 'whatsappReplySnippet',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'gigId', 'title', 'totalFeeNgn',
+          'milestoneSummary', 'documentMarkdown', 'whatsappReplySnippet',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == agreementId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidId(data.gigId)
+        && data.gigId == gigId
+        && isValidString(data.title, 1, 180)
+        && isValidNonNegNumber(data.totalFeeNgn)
+        && isValidString(data.milestoneSummary, 1, 1000)
+        && isValidString(data.documentMarkdown, 1, 40000)
+        && isValidString(data.whatsappReplySnippet, 1, 4000)
+        && data.status in ['draft', 'finalized']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoURL', 'updatedAt']);
+      allow delete: if false;
+
+      match /gigs/{gigId} {
+        allow get: if isValidId(userId) && isValidId(gigId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(gigId)
+          && isOwner(userId)
+          && isValidGigAudit(incoming(), userId, gigId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(gigId)
+          && isOwner(userId)
+          && isValidGigAudit(incoming(), userId, gigId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'clientName', 'projectType', 'clientStatedBudgetNgn',
+            'recommendedMinNgn', 'recommendedMaxNgn', 'timelineRequestedDays',
+            'recommendedDays', 'verdictStatus', 'verdictSummary', 'rawTranscript',
+            'parsedMessages', 'discrepancies', 'scopeItems', 'pricingVerdict',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(gigId) && isOwner(userId);
+
+        match /messages/{messageId} {
+          function parentGigExistsAndOwned() {
+            return exists(/databases/$(database)/documents/users/$(userId)/gigs/$(gigId))
+              && get(/databases/$(database)/documents/users/$(userId)/gigs/$(gigId)).data.ownerId == request.auth.uid;
+          }
+
+          allow get: if isValidId(userId) && isValidId(gigId) && isValidId(messageId) && isOwner(userId);
+          allow list: if isValidId(userId) && isValidId(gigId) && isOwner(userId) && existing().ownerId == request.auth.uid;
+          allow create: if isValidId(userId)
+            && isValidId(gigId)
+            && isValidId(messageId)
+            && isOwner(userId)
+            && isValidAdvisorMessage(incoming(), userId, gigId, messageId)
+            && incoming().createdAt == request.time
+            && parentGigExistsAndOwned();
+          allow update: if false;
+          allow delete: if isValidId(userId) && isValidId(gigId) && isValidId(messageId) && isOwner(userId);
+        }
+
+        match /agreements/{agreementId} {
+          function parentGigExistsAndOwned() {
+            return exists(/databases/$(database)/documents/users/$(userId)/gigs/$(gigId))
+              && get(/databases/$(database)/documents/users/$(userId)/gigs/$(gigId)).data.ownerId == request.auth.uid;
+          }
+
+          allow get: if isValidId(userId) && isValidId(gigId) && isValidId(agreementId) && isOwner(userId);
+          allow list: if isValidId(userId) && isValidId(gigId) && isOwner(userId) && existing().ownerId == request.auth.uid;
+          allow create: if isValidId(userId)
+            && isValidId(gigId)
+            && isValidId(agreementId)
+            && isOwner(userId)
+            && isValidAgreementDraft(incoming(), userId, gigId, agreementId)
+            && incoming().createdAt == request.time
+            && incoming().updatedAt == request.time
+            && parentGigExistsAndOwned();
+          allow update: if isValidId(userId)
+            && isValidId(gigId)
+            && isValidId(agreementId)
+            && isOwner(userId)
+            && existing().status != 'finalized'
+            && isValidAgreementDraft(incoming(), userId, gigId, agreementId)
+            && incoming().id == existing().id
+            && incoming().ownerId == existing().ownerId
+            && incoming().gigId == existing().gigId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && (
+              (incoming().status == 'draft' && incoming().diff(existing()).affectedKeys().hasOnly([
+                'title', 'totalFeeNgn', 'milestoneSummary', 'documentMarkdown', 'whatsappReplySnippet', 'updatedAt'
+              ])) ||
+              (incoming().status == 'finalized' && incoming().diff(existing()).affectedKeys().hasOnly([
+                'status', 'title', 'totalFeeNgn', 'milestoneSummary', 'documentMarkdown', 'whatsappReplySnippet', 'updatedAt'
+              ]))
+            );
+          allow delete: if isValidId(userId) && isValidId(gigId) && isValidId(agreementId) && isOwner(userId);
+        }
+      }
+    }
+  }
+}

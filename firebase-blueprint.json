@@ -1,0 +1,298 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated developer account profile with owner-isolated PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the developer."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Developer display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254,
+          "description": "Verified developer email address."
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Optional profile photo URL."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "GigAudit": {
+      "title": "GigAudit",
+      "description": "Audited WhatsApp gig workspace with NGN pricing benchmarks, discrepancy findings, and bloat classification.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "clientName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "projectType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "clientStatedBudgetNgn": {
+          "type": "number"
+        },
+        "recommendedMinNgn": {
+          "type": "number"
+        },
+        "recommendedMaxNgn": {
+          "type": "number"
+        },
+        "timelineRequestedDays": {
+          "type": "number"
+        },
+        "recommendedDays": {
+          "type": "number"
+        },
+        "verdictStatus": {
+          "type": "string",
+          "enum": ["underpriced", "fair", "bloated"]
+        },
+        "verdictSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "rawTranscript": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50000
+        },
+        "parsedMessages": {
+          "type": "array"
+        },
+        "discrepancies": {
+          "type": "array"
+        },
+        "scopeItems": {
+          "type": "array"
+        },
+        "pricingVerdict": {
+          "type": "object"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "clientName",
+        "projectType",
+        "clientStatedBudgetNgn",
+        "recommendedMinNgn",
+        "recommendedMaxNgn",
+        "timelineRequestedDays",
+        "recommendedDays",
+        "verdictStatus",
+        "verdictSummary",
+        "rawTranscript",
+        "parsedMessages",
+        "discrepancies",
+        "scopeItems",
+        "pricingVerdict",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdvisorMessage": {
+      "title": "AdvisorMessage",
+      "description": "Message inside the built-in discrepancy and agreement advisor chatbox.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "gigId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["developer", "client_input", "advisor"]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 15000
+        },
+        "discrepancyFlags": {
+          "type": "array"
+        },
+        "linkedAgreementId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "gigId", "role", "content", "discrepancyFlags", "createdAt"]
+    },
+    "AgreementDraft": {
+      "title": "AgreementDraft",
+      "description": "Formal Nigerian freelance scope agreement and milestone schedule generated from the WhatsApp audit.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "gigId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "totalFeeNgn": {
+          "type": "number"
+        },
+        "milestoneSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "documentMarkdown": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40000
+        },
+        "whatsappReplySnippet": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "finalized"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "gigId",
+        "title",
+        "totalFeeNgn",
+        "milestoneSummary",
+        "documentMarkdown",
+        "whatsappReplySnippet",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Developer profile document isolated strictly to the owning user."
+    },
+    "/users/{userId}/gigs/{gigId}": {
+      "schema": {
+        "$ref": "#/entities/GigAudit"
+      },
+      "description": "WhatsApp gig scope audits owned by the developer."
+    },
+    "/users/{userId}/gigs/{gigId}/messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/AdvisorMessage"
+      },
+      "description": "Advisor chatbox messages and appended client messages for a gig audit."
+    },
+    "/users/{userId}/gigs/{gigId}/agreements/{agreementId}": {
+      "schema": {
+        "$ref": "#/entities/AgreementDraft"
+      },
+      "description": "Drafted and finalized Nigerian freelance agreements for a gig audit."
+    }
+  }
+}
